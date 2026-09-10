@@ -1,0 +1,48 @@
+in time=-based we can have second min and hour and meter km etc for distance and valid GPS location for example if the accuracy of device is 10m but we want 1m so we will tick the check box. After start is clicked we have options of stop or pause 
+With the help of bearing we can add a live north pointer we can have pause path or finish path -- 
+Satellite and skyplot we dont need in exe we only need it in apk 
+
+On the top right we need only 1 option more select GNSS device and then we can select and make it working then store all in local data and export and all as shown 
+
+
+In merge data we have subscription 
+In exe we have in skyplot we have map and we can use openstreet map in exe and in apk we will give option of subscription where they can use google map
+
+
+On share ocation we can share my location 
+The statistics will only have in apk
+In exe dashboard map and merge data and 3 dots for selecting 
+Using 3 dots in the settings refer the first image 
+
+Make sure you use all the relative width and height for tab laptop and phone where got it? IMP point got it so keep it relative and adjust it according to the display size 
+For now let us focus on exe only 
+
+Theme red and white, red and white blue ad white and blue and black 
+
+
+In exe we will also have altitude of MSM 
+Clear dont save and save meaning the file cannot be modified anymore and saved in txt
+Try and keep in txt only for this yyyymmdd_hhssmsms.txt -- this is  default filename
+For enclose in polygon just keep it optional and join the start and endpoint 
+Now when we click on add tag:
+
+
+The project owner must provide or approve:
+Exact GNSS receiver manufacturer, model, and firmware version.
+Normal Bluetooth HC05 bluetooth receiver is there breakout board input is HC05. G
+For Android: BLE GATT UUIDs or confirmation that the receiver uses Bluetooth Classic SPP.
+
+For Windows: expected COM baud rate and serial configuration.
+9600 standard and slave mode device HC05 serial UUID signal high low or receiving pulses uses standard receiving pulses
+At least 15 minutes of representative NMEA output, including no-fix and valid-fix periods.
+Generate this using a standard data and make a csv – it has 4 main parameters- timestamp lat lon and altitude – basic parameters and more which you can use. Generate standard GNSS 100  samples output file make csv and I will forward and check. We will use virtual COM port in laptop and 80+ URT series 9600 + 0 + 0 
+Minimum Android version and target test devices.
+Android version – we will use c-type converter not bluetooth module in C-type D+ D- and VCC so in apk we need no bluetooth and power from phone CC and blob and in windows we are using bluetooth instead of c-type as we dont have that
+Whether Android logging must continue with the screen off/app in background.
+Yes we should HAVE IT WORKING ON screen off ALSO. battery saver will be off and ask user for permission and that application will always run and disable battery saving mode 
+Whether raw NMEA, normalized CSV, or both are required.
+Raw NMEA - GNSS records & MSM altitude, timestamp, lat and lon and we need normalised CSV we need not show raw NMEA and directly store line by line per second 
+Required Windows delivery format: ZIP, installer, or Microsoft Store package.
+ZIP format or .exe will be fine
+Release signing keys/certificates or approval to deliver unsigned test builds.
+We can generate 50 keys for now and we can even hardcode it and it will fetch it from somewhere in v1 got it?
