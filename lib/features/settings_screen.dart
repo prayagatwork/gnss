@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'app_theme.dart';
 import 'gnss_session_controller.dart';
 
-/// "Using 3 dots in the settings refer the first image" — this is the panel
-/// opened from the AppBar's 3-dot menu. Covers spec 8.3 for exe scope
-/// (Windows folder selection; no Android SAF/export-share here).
 class SettingsScreen extends ConsumerStatefulWidget {
   final AppThemeChoice currentTheme;
   final ValueChanged<AppThemeChoice> onThemeChanged;
@@ -22,118 +18,243 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  int _samplingSeconds = 1;
-  String _rotation = '1 hour';
-  bool _rawNmeaEnabled = false;
-  bool _autoReconnect = true;
-
   @override
   Widget build(BuildContext context) {
-    final session = ref.watch(gnssSessionProvider);
-    final notifier = ref.read(gnssSessionProvider.notifier);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Settings"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.maybePop(context),
+        ),
+      ),
+      body: ListView(
+        children: [
+          // 1. Record Settings Category
+          _SettingsCategoryTile(
+            icon: Icons.settings_voice_outlined,
+            title: "Record settings",
+            subtitle: "Configure recording behavior and automation",
+            onTap: () => _openSubSettings(
+                context, "Record settings", _buildRecordSettings()),
+          ),
+          // 2. Display Settings Category
+          _SettingsCategoryTile(
+            icon: Icons.monitor_outlined,
+            title: "Display settings",
+            subtitle: "Customize units, map, charts and appearance",
+            onTap: () => _openSubSettings(
+                context, "Display settings", _buildDisplaySettings()),
+          ),
+          // 3. Storage Settings Category
+          _SettingsCategoryTile(
+            icon: Icons.storage_outlined,
+            title: "Storage settings",
+            subtitle: "Manage storage, import/export and databases",
+            onTap: () => _openSubSettings(
+                context, "Storage settings", _buildStorageSettings()),
+          ),
+          // 4. Manage Subscription Category
+          _SettingsCategoryTile(
+            icon: Icons.visibility_outlined,
+            title: "Manage subscription",
+            subtitle: "View and manage your subscription",
+            onTap: () {},
+          ),
 
+          const Divider(),
+
+          // Subscription Banner matching screenshot
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: const TextSpan(
+                      text: "Subscription: ",
+                      style: TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.bold),
+                      children: [
+                        TextSpan(
+                            text: "NONE", style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                            "Subscribe now and unlock all premium features",
+                            style:
+                                TextStyle(fontSize: 12, color: Colors.black54)),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade800,
+                            foregroundColor: Colors.white),
+                        child: const Text("SUBSCRIBE"),
+                      )
+                    ],
+                  )
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openSubSettings(BuildContext context, String title, Widget content) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: Text(title)),
+          body: content,
+        ),
+      ),
+    );
+  }
+
+  // --- Sub-Panels matching the screenshot detail views ---
+
+  Widget _buildRecordSettings() {
+    final session = ref.watch(gnssSessionProvider);
     return ListView(
-      padding: const EdgeInsets.all(16),
       children: [
-        _sectionTitle(context, 'Logging'),
+        const ListTile(
+            title: Text("Record profile: General"),
+            subtitle: Text("Freq: 1 second, Dist: 1.0 m")),
         SwitchListTile(
-          title: const Text('Enable logging'),
-          value: session.loggingEnabled,
-          onChanged: (v) => notifier.setLoggingEnabled(v),
+          secondary: const Icon(Icons.battery_saver_outlined),
+          title: const Text("Ignore battery optimizations"),
+          subtitle: const Text("Recommended for better background recording"),
+          value: true,
+          onChanged: (v) {},
         ),
-        ListTile(
-          title: const Text('Sampling interval'),
-          trailing: DropdownButton<int>(
-            value: _samplingSeconds,
-            items: const [1, 5, 10]
-                .map((s) => DropdownMenuItem(value: s, child: Text('$s s')))
-                .toList(),
-            onChanged: (v) => setState(() => _samplingSeconds = v ?? 1),
-          ),
-        ),
-        ListTile(
-          title: const Text('File rotation interval'),
-          trailing: DropdownButton<String>(
-            value: _rotation,
-            items: const ['30 minutes', '1 hour', 'Daily']
-                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                .toList(),
-            onChanged: (v) => setState(() => _rotation = v ?? '1 hour'),
-          ),
-        ),
+        const ListTile(
+            title: Text("Setup for background work"),
+            subtitle: Text(
+                "Manual configuration for continuous background recording")),
         SwitchListTile(
-          title: const Text('Also record raw NMEA (.nmea)'),
-          subtitle: const Text('Normalized CSV is always recorded'),
-          value: _rawNmeaEnabled,
-          onChanged: (v) => setState(() => _rawNmeaEnabled = v),
+          secondary: const Icon(Icons.stop_circle_outlined),
+          title: const Text("Mark stops"),
+          subtitle:
+              const Text("Automatically mark stops when you stop for a while"),
+          value: session.isRecording,
+          onChanged: (v) {},
         ),
-        const Divider(height: 32),
-        _sectionTitle(context, 'File actions'),
-        Wrap(
-          spacing: 8,
-          children: [
-            OutlinedButton.icon(
-              onPressed: () => notifier.clearLog(),
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('Clear (discard, do not save)'),
-            ),
-            FilledButton.icon(
-              onPressed: () => notifier.saveLog(),
-              icon: const Icon(Icons.lock_outline),
-              label: const Text('Save (locks file — no further edits)'),
-            ),
-          ],
-        ),
+        const ListTile(
+            title: Text("Altitude baseline"),
+            subtitle: Text("WGS84 (default)")),
+      ],
+    );
+  }
+
+  Widget _buildDisplaySettings() {
+    return ListView(
+      children: [
+        const ListTile(
+            leading: Icon(Icons.straighten),
+            title: Text("Measurement units"),
+            subtitle: Text("Distances: Kilometers • Altitudes: Meters")),
+        const ListTile(
+            leading: Icon(Icons.dark_mode_outlined),
+            title: Text("Night mode"),
+            subtitle: Text("Automatic")),
+        const ListTile(
+            leading: Icon(Icons.show_chart),
+            title: Text("Default x-axis for charts"),
+            subtitle: Text("Duration (s)")),
+        const Divider(),
         const Padding(
-          padding: EdgeInsets.only(top: 8),
-          child: Text(
-            'Default filename format: yyyymmdd_hhmmssmmm.txt',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+          padding: EdgeInsets.all(16.0),
+          child: Text("Appearance Theme",
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
         ),
-        const Divider(height: 32),
-        _sectionTitle(context, 'Connection'),
-        SwitchListTile(
-          title: const Text('Automatic reconnect'),
-          subtitle: const Text('Up to 5 attempts: 1s, 2s, 4s, 8s, 16s'),
-          value: _autoReconnect,
-          onChanged: (v) => setState(() => _autoReconnect = v),
-        ),
-        const Divider(height: 32),
-        _sectionTitle(context, 'Appearance'),
         RadioListTile<AppThemeChoice>(
-          title: const Text('Red & White'),
+          title: const Text("Red & White"),
           value: AppThemeChoice.redWhite,
           groupValue: widget.currentTheme,
           onChanged: (v) => widget.onThemeChanged(v!),
         ),
         RadioListTile<AppThemeChoice>(
-          title: const Text('Blue, White & Black'),
+          title: const Text("Blue & Black"),
           value: AppThemeChoice.blueBlackWhite,
           groupValue: widget.currentTheme,
           onChanged: (v) => widget.onThemeChanged(v!),
-        ),
-        const Divider(height: 32),
-        _sectionTitle(context, 'Diagnostics'),
-        ListTile(
-          title: const Text('Bytes received'),
-          trailing: Text('${session.diagnostics.bytesReceived}'),
-        ),
-        ListTile(
-          title: const Text('Sentences parsed / rejected'),
-          trailing: Text(
-              '${session.diagnostics.parsed} / ${session.diagnostics.checksumFailed + session.diagnostics.malformed}'),
-        ),
-        TextButton(
-          onPressed: () => setState(() => session.diagnostics.reset()),
-          child: const Text('Clear diagnostics counters'),
         ),
       ],
     );
   }
 
-  Widget _sectionTitle(BuildContext context, String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      );
+  Widget _buildStorageSettings() {
+    final notifier = ref.read(gnssSessionProvider.notifier);
+    return ListView(
+      children: [
+        const ListTile(
+            leading: Icon(Icons.folder_open),
+            title: Text("External storage"),
+            subtitle: Text("No storage selected")),
+        const ListTile(
+            leading: Icon(Icons.file_download_outlined),
+            title: Text("Export format"),
+            subtitle: Text("TXT (Default)")),
+        const Divider(),
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text("Actions",
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+        ),
+        ListTile(
+          leading: const Icon(Icons.delete_sweep_outlined, color: Colors.red),
+          title: const Text("Clear current log"),
+          onTap: () => notifier.clearLog(),
+        ),
+        ListTile(
+          leading: const Icon(Icons.save_outlined, color: Colors.green),
+          title: const Text("Save and lock log"),
+          onTap: () => notifier.saveLog(),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsCategoryTile extends StatelessWidget {
+  final IconData icon;
+  final String title, subtitle;
+  final VoidCallback onTap;
+
+  const _SettingsCategoryTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.blue.shade800, size: 28),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text(subtitle,
+          style: const TextStyle(fontSize: 12, color: Colors.black54)),
+      trailing: const Icon(Icons.chevron_right, size: 20),
+      onTap: onTap,
+    );
+  }
 }

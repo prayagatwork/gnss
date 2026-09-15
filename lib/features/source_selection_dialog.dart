@@ -1,166 +1,186 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-
-import '../data/sources/windows_com_source.dart';
 import '../domain/models/source_config.dart';
 import 'gnss_session_controller.dart';
 import 'responsive.dart';
 
-/// "On the top right we need only 1 option more select GNSS device and then
-/// we can select and make it working" — this is that flow, shown as a
-/// dialog opened from the top-right AppBar action in main.dart, matching
-/// spec 8.2 (Source Selection tab) for the exe scope: Windows COM +
-/// Simulation only (Android BLE/SPP/internal is .apk scope).
 class SourceSelectionDialog extends ConsumerStatefulWidget {
   const SourceSelectionDialog({super.key});
 
   @override
-  ConsumerState<SourceSelectionDialog> createState() => _SourceSelectionDialogState();
+  ConsumerState<SourceSelectionDialog> createState() =>
+      _SourceSelectionDialogState();
 }
 
 class _SourceSelectionDialogState extends ConsumerState<SourceSelectionDialog> {
-  SourceType _selectedType = SourceType.windowsCom;
-  String? _selectedComPort;
+  SourceType _selectedType = SourceType.simulation;
   int _baudRate = 9600;
-  String? _simulationFilePath;
-  double _playbackSpeed = 1.0;
-  List<Map<String, String?>> _ports = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _refreshPorts();
-  }
-
-  void _refreshPorts() {
-    setState(() {
-      _ports = WindowsComSource.listPorts();
-      if (_ports.isNotEmpty) _selectedComPort ??= _ports.first['name'];
-    });
-  }
-
-  Future<void> _pickSimulationFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['txt', 'log', 'nmea', 'csv'],
-    );
-    if (result != null && result.files.single.path != null) {
-      setState(() => _simulationFilePath = result.files.single.path);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Select GNSS device'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(
+        children: [
+          Icon(Icons.satellite_alt, color: Colors.blue),
+          SizedBox(width: 12),
+          Text("Select GNSS Device",
+              style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
       content: SizedBox(
-        width: Responsive.relativeWidth(context, 0.5, min: 320, max: 520),
+        // Use responsive width for different screen sizes
+        width: Responsive.relativeWidth(context, 0.45, min: 320, max: 500),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SegmentedButton<SourceType>(
-              segments: const [
-                ButtonSegment(
-                  value: SourceType.windowsCom,
-                  label: Text('External receiver'),
-                  icon: Icon(Icons.usb),
-                ),
-                ButtonSegment(
-                  value: SourceType.simulation,
-                  label: Text('Simulation file'),
-                  icon: Icon(Icons.play_circle_outline),
-                ),
-              ],
-              selected: {_selectedType},
-              onSelectionChanged: (s) => setState(() => _selectedType = s.first),
-            ),
+            const Text("Choose your data source:",
+                style: TextStyle(color: Colors.black54, fontSize: 13)),
             const SizedBox(height: 16),
-            if (_selectedType == SourceType.windowsCom) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _selectedComPort,
-                      decoration: const InputDecoration(labelText: 'COM port'),
-                      items: _ports
-                          .map((p) => DropdownMenuItem(
-                                value: p['name'],
-                                child: Text(
-                                  '${p['name']}${p['description'] != null ? ' — ${p['description']}' : ''}',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedComPort = v),
-                    ),
+
+            // Modern Segmented Button selection
+            Center(
+              child: SegmentedButton<SourceType>(
+                segments: const [
+                  ButtonSegment(
+                    value: SourceType.simulation,
+                    label: Text('Simulation'),
+                    icon: Icon(Icons.play_circle_outline),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Rescan ports',
-                    onPressed: _refreshPorts,
+                  ButtonSegment(
+                    value: SourceType.windowsCom,
+                    label: Text('External'),
+                    icon: Icon(Icons.usb),
                   ),
                 ],
+                selected: {_selectedType},
+                onSelectionChanged: (Set<SourceType> newSelection) {
+                  setState(() {
+                    _selectedType = newSelection.first;
+                  });
+                },
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: _baudRate,
-                decoration: const InputDecoration(labelText: 'Baud rate'),
-                items: SourceConfig.supportedBaudRates
-                    .map((b) => DropdownMenuItem(value: b, child: Text('$b')))
-                    .toList(),
-                onChanged: (v) => setState(() => _baudRate = v ?? 9600),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '8 data bits · no parity · 1 stop bit (HC-05 default, slave mode)',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Conditional view based on selection
+            if (_selectedType == SourceType.simulation) ...[
+              const _SourceInfoBox(
+                icon: Icons.info_outline,
+                text:
+                    "Select a .nmea or .txt log file from your computer to simulate a live GNSS feed.",
               ),
             ] else ...[
-              OutlinedButton.icon(
-                onPressed: _pickSimulationFile,
-                icon: const Icon(Icons.folder_open),
-                label: Text(_simulationFilePath == null
-                    ? 'Choose sample file (.txt/.nmea/.csv)'
-                    : _simulationFilePath!.split(Platform.pathSeparator).last),
+              const Text("Baud Rate",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                value: _baudRate,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  isDense: true,
+                ),
+                items: [4800, 9600, 38400, 115200].map((int val) {
+                  return DropdownMenuItem<int>(
+                    value: val,
+                    child: Text("$val bps"),
+                  );
+                }).toList(),
+                onChanged: (v) => setState(() => _baudRate = v!),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<double>(
-                initialValue: _playbackSpeed,
-                decoration: const InputDecoration(labelText: 'Playback speed'),
-                items: SourceConfig.supportedPlaybackSpeeds
-                    .map((s) => DropdownMenuItem(value: s, child: Text('${s}x')))
-                    .toList(),
-                onChanged: (v) => setState(() => _playbackSpeed = v ?? 1.0),
+              const _SourceInfoBox(
+                icon: Icons.warning_amber_rounded,
+                text:
+                    "Physical serial port connection is only available in the Windows (.exe) build.",
               ),
             ],
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(
-          onPressed: () {
-            final config = _selectedType == SourceType.windowsCom
-                ? SourceConfig(
-                    type: SourceType.windowsCom,
-                    comPortName: _selectedComPort,
-                    baudRate: _baudRate,
-                  )
-                : SourceConfig(
-                    type: SourceType.simulation,
-                    simulationFilePath: _simulationFilePath,
-                    playbackSpeed: _playbackSpeed,
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue.shade800,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: () async {
+            if (_selectedType == SourceType.simulation) {
+              // Web & Desktop compatible file picking
+              final result = await FilePicker.platform.pickFiles(
+                type: FileType.custom,
+                allowedExtensions: ['nmea', 'txt', 'log'],
+                withData: true, // Required for Web to get bytes
+              );
+
+              if (result != null && result.files.first.bytes != null) {
+                if (!mounted) return;
+
+                // Pass the actual file data to the backend
+                ref
+                    .read(gnssSessionProvider.notifier)
+                    .startWebSimulation(result.files.first.bytes!);
+
+                Navigator.pop(context);
+              }
+            } else {
+              // Logic for Serial Port (stubbed on Web, functional on EXE)
+              ref.read(gnssSessionProvider.notifier).connect(
+                    SourceConfig(
+                        type: SourceType.windowsCom, baudRate: _baudRate),
                   );
-            Navigator.pop(context);
-            ref.read(gnssSessionProvider.notifier).connect(config);
+              Navigator.pop(context);
+            }
           },
-          child: const Text('Connect'),
+          child: Text(_selectedType == SourceType.simulation
+              ? "Select File"
+              : "Connect"),
         ),
       ],
+    );
+  }
+}
+
+/// Helper widget for the info boxes inside the dialog
+class _SourceInfoBox extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _SourceInfoBox({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.blueGrey),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -149,7 +149,7 @@ class NmeaParser {
           diagnostics.unsupported++;
           return null;
       }
-      if (fix != null) diagnostics.parsed++;
+      diagnostics.parsed++;
       return fix;
     } catch (e) {
       diagnostics.malformed++;
@@ -169,10 +169,10 @@ class NmeaParser {
     if (hemi == 'S' || hemi == 'W') result = -result;
     // Reject impossible ranges (spec rule 6.3).
     if (isLat && (result < -90 || result > 90)) {
-      throw FormatException('latitude out of range');
+      throw const FormatException('latitude out of range');
     }
     if (!isLat && (result < -180 || result > 180)) {
-      throw FormatException('longitude out of range');
+      throw const FormatException('longitude out of range');
     }
     return result;
   }
@@ -226,12 +226,14 @@ class NmeaParser {
     final lat = fixValid ? _coord(f[3], f[4], isLat: true) : null;
     final lon = fixValid ? _coord(f[5], f[6], isLat: false) : null;
     final speedKnots = f[7].isNotEmpty ? double.tryParse(f[7]) : null;
-    final speedKmh = speedKnots != null ? speedKnots * 1.852 : null; // spec rule 6.6
+    final speedKmh =
+        speedKnots != null ? speedKnots * 1.852 : null; // spec rule 6.6
     var heading = f[8].isNotEmpty ? double.tryParse(f[8]) : null;
     if (heading != null) heading = heading % 360; // spec rule 6.7
     return GnssFix(
       receivedAtUtc: DateTime.now().toUtc(),
-      gnssTimeUtc: TimeUtils.fromNmeaTimeDate(f[1], f[9]), // combine RMC date+time, spec 6.9
+      gnssTimeUtc: TimeUtils.fromNmeaTimeDate(
+          f[1], f[9]), // combine RMC date+time, spec 6.9
       source: source,
       latitudeDeg: lat,
       longitudeDeg: lon,

@@ -90,3 +90,5 @@ Once you (or the client) have a Windows machine with Flutter set up, I can
 walk through this build step by step, or continue building out the
 remaining features (map, raw logging, licensing) so the next handoff is
 closer to feature-complete.
+
+flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080

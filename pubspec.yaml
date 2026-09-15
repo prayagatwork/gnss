@@ -15,6 +15,9 @@ dependencies:
   file_picker: ^8.0.0               # simulation file picker / export
   intl: ^0.19.0
   package_info_plus: ^8.0.0
+  fl_chart: ^0.69.0  # For Speed/Elevation Graphs
+  flutter_map: ^7.0.2 # For OpenStreetMap
+  latlong2: ^0.9.1    # For Coordinates
 
 dev_dependencies:
   flutter_test:
