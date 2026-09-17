@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/app_theme.dart';
 import 'features/dashboard_screen.dart';
+import 'features/satellites_screen.dart';
+import 'features/skyplot_screen.dart';
 import 'features/gnss_session_controller.dart';
 import 'features/settings_screen.dart';
 import 'features/source_selection_dialog.dart';
+import 'features/merge_data_screen.dart';
 
 void main() => runApp(const ProviderScope(child: SkyTrackApp()));
 
@@ -24,6 +27,7 @@ class _SkyTrackAppState extends State<SkyTrackApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      title: 'SkyTrack GNSS Explorer',
       theme: AppTheme.build(_theme),
       home: MainShell(
         currentTheme: _theme,
@@ -45,65 +49,96 @@ class MainShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: const Text(
-          'SkyTrack GNSS Explorer',
-          style: TextStyle(fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Select GNSS device',
-            icon: const Icon(Icons.link),
-            onPressed: () => showDialog(
-              context: context,
-              builder: (_) => const SourceSelectionDialog(),
-            ),
+    return DefaultTabController(
+      length: 3, // DASHBOARD, SATELLITES, SKYPLOT
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        appBar: AppBar(
+          title: const Text(
+            'SkyTrack GNSS Explorer',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) => _handleMenu(context, ref, value),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: 'loc',
-                child: ListTile(
-                  leading: Icon(Icons.location_on_outlined),
-                  title: Text('My Location'),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'track',
-                child: ListTile(
-                  leading: Icon(Icons.description_outlined),
-                  title: Text('Waypoints & Track Data'),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'set',
-                child: ListTile(
-                  leading: Icon(Icons.settings_outlined),
-                  title: Text('Settings'),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'exp',
-                child: ListTile(
-                  leading: Icon(Icons.upload_outlined),
-                  title: Text('Export Current Path'),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'about',
-                child: ListTile(
-                  leading: Icon(Icons.info_outline),
-                  title: Text('About'),
-                ),
-              ),
+          // Tab bar at the bottom of the AppBar matching the screenshot
+          bottom: const TabBar(
+            indicatorColor: Colors.white,
+            indicatorWeight: 3,
+            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            tabs: [
+              Tab(text: "DASHBOARD"),
+              Tab(text: "SATELLITES"),
+              Tab(text: "SKYPLOT"),
             ],
           ),
-        ],
+          actions: [
+            IconButton(
+              tooltip: 'Select GNSS device',
+              icon: const Icon(Icons.link),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (_) => const SourceSelectionDialog(),
+              ),
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) => _handleMenu(context, ref, value),
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'loc',
+                  child: ListTile(
+                    leading: Icon(Icons.location_on_outlined),
+                    title: Text('My Location'),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'track',
+                  child: ListTile(
+                    leading: Icon(Icons.description_outlined),
+                    title: Text('Waypoints & Track Data'),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'set',
+                  child: ListTile(
+                    leading: Icon(Icons.settings_outlined),
+                    title: Text('Settings'),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'merge',
+                  child: ListTile(
+                    leading: Icon(Icons.merge_type),
+                    title: Text('Merge Data'),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'about',
+                  child: ListTile(
+                    leading: Icon(Icons.info_outline),
+                    title: Text('About'),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        // TabBarView switches content between the three main screens
+        body: const TabBarView(
+          children: [
+            DashboardScreen(),
+            SatellitesScreen(),
+            SkyplotScreen(),
+          ],
+        ),
       ),
-      body: const DashboardScreen(),
     );
   }
 
@@ -136,8 +171,7 @@ class MainShell extends ConsumerWidget {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              '${session.pathPoints.length} point(s), '
-              '${session.totalDistance.toStringAsFixed(1)} m recorded.',
+              '${session.pathPoints.length} point(s) recorded in current session.',
             ),
           ),
         );
@@ -152,15 +186,10 @@ class MainShell extends ConsumerWidget {
           ),
         );
         return;
-      case 'exp':
-        final savedPath =
-            await ref.read(gnssSessionProvider.notifier).saveLog();
-        if (!context.mounted) return;
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(savedPath == null
-                ? 'No recorded path to export.'
-                : 'Path saved to $savedPath'),
+      case 'merge':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const MergeDataScreen(),
           ),
         );
         return;
@@ -171,6 +200,8 @@ class MainShell extends ConsumerWidget {
           applicationVersion: '0.1.0',
           children: const [
             Text('Windows exe handover build for HC-05 GNSS COM input.'),
+            SizedBox(height: 10),
+            Text('Includes Simulation Mode, Path Recording, and Export.'),
           ],
         );
         return;

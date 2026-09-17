@@ -45,28 +45,35 @@ class SkyplotScreen extends StatelessWidget {
   }
 
   Widget _buildStatistics() {
-    return ListView(
+    return SingleChildScrollView(
+      // Added scroll for stats
       padding: const EdgeInsets.all(16),
-      children: [
-        // 4 Summary Cards
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _statMiniCard("Points", "56"),
-            _statMiniCard("Track", "3.72 km"),
-            _statMiniCard("Max Spd", "28.6"),
-            _statMiniCard("Avg Spd", "12.4"),
-          ],
-        ),
-        const SizedBox(height: 20),
-        const Text("SPEED PLOT (km/h)",
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 150, child: _LineChart(color: Colors.blue)),
-        const Divider(height: 40),
-        const Text("ELEVATION PLOT (m)",
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 150, child: _LineChart(color: Colors.green)),
-      ],
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _statMiniCard("Points", "56"),
+              _statMiniCard("Track", "3.72 km"),
+              _statMiniCard("Max Spd", "28.6"),
+              _statMiniCard("Avg Spd", "12.4"),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text("SPEED PLOT (km/h)",
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+          const SizedBox(
+              height: 200, child: _LineChart(color: Colors.blue)), // Set height
+          const Divider(height: 40),
+          const Text("ELEVATION PLOT (m)",
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+          const SizedBox(
+              height: 200,
+              child: _LineChart(color: Colors.green)), // Set height
+        ],
+      ),
     );
   }
 

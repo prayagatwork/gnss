@@ -158,25 +158,37 @@ class GnssSessionController extends StateNotifier<GnssSessionState> {
   }
 
   void startWebSimulation(Uint8List fileBytes) {
-    disconnect();
+    disconnect(); // Stop existing simulation
     final content = utf8.decode(fileBytes);
     final lines = content.split('\n');
     int index = 0;
 
-    _simTimer?.cancel();
-    state = state.copyWith(
-      status: SourceStatus.connected,
-      statusMessage: 'Simulation file loaded.',
-    );
     _simTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (index >= lines.length) {
         timer.cancel();
         state = state.copyWith(status: SourceStatus.disconnected);
         return;
       }
+      
       final rawLine = lines[index++];
-      _consumeBytes(Uint8List.fromList(utf8.encode('$rawLine\r\n')),
-          sourceName: 'simulation');
+      if (rawLine.trim().isEmpty) return;
+
+      // FEED THE FRAMER
+      final frames = _framer.feed(Uint8List.fromList(utf8.encode('$rawLine\r\n')));
+      
+      for (var frame in frames) {
+        final fix = _parser.parse(frame, sourceName: 'simulation');
+        if (fix != null) {
+          // UPDATE STATE LIVE
+          final merged = (state.currentFix ?? GnssFix.empty('sim')).mergedWith(fix);
+          state = state.copyWith(
+            currentFix: merged, 
+            status: SourceStatus.receiving,
+            // Logic to calculate distance and add points
+          );
+          _appendPointIfNeeded(merged); // Crucial for "Path" card update
+        }
+      }
     });
   }
 

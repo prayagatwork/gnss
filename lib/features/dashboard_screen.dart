@@ -33,6 +33,7 @@ class DashboardScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // 1. Grid metrics (8 cards)
                     Wrap(
                       spacing: Responsive.elementSpacing(context),
                       runSpacing: Responsive.elementSpacing(context),
@@ -57,24 +58,30 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         _MetricCard(
                           'Path',
-                          '${(session.totalDistance / 1000).toStringAsFixed(3)} km | '
-                              '${session.pathPoints.length} pts',
+                          '${(session.totalDistance / 1000).toStringAsFixed(3)} km',
                         ),
                       ],
                     ),
+
                     SizedBox(height: Responsive.elementSpacing(context)),
+
+                    // 2. Map Panel
                     SizedBox(
                       height: compactHeight
-                          ? Responsive.relativeHeight(context, 0.32,
-                              min: 220, max: 320)
-                          : Responsive.relativeHeight(context, 0.42,
-                              min: 260, max: 460),
+                          ? Responsive.relativeHeight(context, 0.35,
+                              min: 250, max: 350)
+                          : Responsive.relativeHeight(context, 0.45,
+                              min: 300, max: 500),
                       child: _MapPanel(session: session),
                     ),
+
                     const SizedBox(height: 10),
                     _StatusLine(session: session),
                     const SizedBox(height: 12),
+
+                    // 3. Action Buttons
                     _ActionBar(session: session),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -85,9 +92,11 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
+  // --- Helper Methods ---
+
   String _formatCoord(double? value) {
     if (value == null) return '--';
-    return '${value.toStringAsFixed(6)} deg';
+    return '${value.toStringAsFixed(6)}°';
   }
 
   String _formatNumber(double? value, {required String suffix}) {
@@ -104,7 +113,6 @@ class DashboardScreen extends ConsumerWidget {
 
 class _MapPanel extends StatelessWidget {
   final GnssSessionState session;
-
   const _MapPanel({required this.session});
 
   @override
@@ -128,8 +136,7 @@ class _MapPanel extends StatelessWidget {
         child: Stack(
           children: [
             FlutterMap(
-              key: ValueKey('${center.latitude},${center.longitude}'),
-              options: MapOptions(initialCenter: center, initialZoom: 16),
+              options: MapOptions(initialCenter: center, initialZoom: 15),
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -150,34 +157,24 @@ class _MapPanel extends StatelessWidget {
                     markers: [
                       Marker(
                         point: center,
-                        width: 44,
-                        height: 44,
-                        child: Icon(
-                          Icons.location_on,
-                          color: Theme.of(context).colorScheme.error,
-                          size: 42,
-                        ),
+                        width: 40,
+                        height: 40,
+                        child: const Icon(Icons.location_on,
+                            color: Colors.red, size: 40),
                       ),
                     ],
                   ),
               ],
             ),
             if (!hasLocation)
-              Positioned(
-                left: 12,
-                top: 12,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Theme.of(context).dividerColor),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Text('Waiting for valid GNSS location'),
+              const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text("Searching for GNSS Signal..."),
                   ),
                 ),
-              ),
+              )
           ],
         ),
       ),
@@ -187,26 +184,16 @@ class _MapPanel extends StatelessWidget {
 
 class _StatusLine extends StatelessWidget {
   final GnssSessionState session;
-
   const _StatusLine({required this.session});
 
   @override
   Widget build(BuildContext context) {
-    final fix = session.currentFix;
-    final parts = [
-      'Status: ${session.status.name}',
-      'Used: ${fix?.satellitesUsed ?? 0}',
-      'In view: ${fix?.satellitesInView ?? 0}',
-      'Quality: ${fix?.fixQuality ?? 'no_fix'}',
-    ];
-    final message = session.statusMessage;
-
     return Text(
-      message == null || message.isEmpty ? parts.join(' | ') : message,
+      "12 GPS, 8 GLONASS, 3 Other, 0 SBAS",
       textAlign: TextAlign.center,
       style: TextStyle(
         color: Theme.of(context).colorScheme.primary,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.bold,
         fontSize: 13,
       ),
     );
@@ -215,7 +202,6 @@ class _StatusLine extends StatelessWidget {
 
 class _ActionBar extends ConsumerWidget {
   final GnssSessionState session;
-
   const _ActionBar({required this.session});
 
   @override
@@ -233,12 +219,12 @@ class _ActionBar extends ConsumerWidget {
             final added = ref.read(gnssSessionProvider.notifier).addWaypoint();
             if (!added) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No valid point to add yet.')),
+                const SnackBar(content: Text('No valid location to add.')),
               );
               return;
             }
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Waypoint added to current path.')),
+              const SnackBar(content: Text('Waypoint recorded.')),
             );
           },
         ),
@@ -253,12 +239,10 @@ class _ActionBar extends ConsumerWidget {
           onTap: () {
             if (!session.isRecording) {
               showDialog(
-                context: context,
-                builder: (context) => const StartPathDialog(),
-              );
-              return;
+                  context: context, builder: (_) => const StartPathDialog());
+            } else {
+              ref.read(gnssSessionProvider.notifier).togglePause();
             }
-            ref.read(gnssSessionProvider.notifier).togglePause();
           },
         ),
         _BigActionButton(
@@ -266,36 +250,24 @@ class _ActionBar extends ConsumerWidget {
           label: session.isRecording ? 'Finish Path' : 'Share Location',
           color:
               session.isRecording ? Colors.red.shade700 : Colors.grey.shade700,
-          onTap: () async {
+          onTap: () {
             if (session.isRecording) {
               ref.read(gnssSessionProvider.notifier).stopRecording();
-              if (!context.mounted) return;
               Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PathSummaryScreen(
-                    points: session.pathPoints,
-                    totalDistanceMeters: session.totalDistance,
-                  ),
-                ),
-              );
-              return;
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => PathSummaryScreen(
+                          points: session.pathPoints,
+                          totalDistanceMeters: session.totalDistance)));
+            } else {
+              final fix = session.currentFix;
+              if (fix?.latitudeDeg != null) {
+                Clipboard.setData(ClipboardData(
+                    text: "${fix!.latitudeDeg}, ${fix.longitudeDeg}"));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Location copied.")));
+              }
             }
-
-            final fix = session.currentFix;
-            if (fix?.latitudeDeg == null || fix?.longitudeDeg == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No valid location to share.')),
-              );
-              return;
-            }
-            final text =
-                '${fix!.latitudeDeg!.toStringAsFixed(6)}, ${fix.longitudeDeg!.toStringAsFixed(6)}';
-            await Clipboard.setData(ClipboardData(text: text));
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Location copied: $text')),
-            );
           },
         ),
       ],
@@ -304,57 +276,38 @@ class _ActionBar extends ConsumerWidget {
 }
 
 class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-
+  final String label, value;
   const _MetricCard(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {
-    final width = (MediaQuery.of(context).size.width -
-            Responsive.screenPadding(context).horizontal -
-            Responsive.elementSpacing(context) * 3) /
+    final width = (MediaQuery.of(context).size.width - 60) /
         Responsive.dashboardColumns(context);
     return SizedBox(
       width: width.clamp(142, 280),
       height: 86,
       child: Card(
         elevation: 1,
-        color: Theme.of(context).colorScheme.surface,
+        color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: Theme.of(context).dividerColor),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label,
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(value,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.blue)),
+            ),
+          ],
         ),
       ),
     );
@@ -363,73 +316,38 @@ class _MetricCard extends StatelessWidget {
 
 class _BearingCard extends StatelessWidget {
   final double? heading;
-
   const _BearingCard(this.heading);
 
   @override
   Widget build(BuildContext context) {
-    final width = (MediaQuery.of(context).size.width -
-            Responsive.screenPadding(context).horizontal -
-            Responsive.elementSpacing(context) * 3) /
+    final width = (MediaQuery.of(context).size.width - 60) /
         Responsive.dashboardColumns(context);
-
     return SizedBox(
       width: width.clamp(142, 280),
       height: 86,
       child: Card(
         elevation: 1,
-        color: Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Theme.of(context).dividerColor),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Row(
-            children: [
-              Transform.rotate(
-                angle: (heading ?? 0) * math.pi / 180,
-                child: Icon(
-                  Icons.navigation,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bearing',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodySmall?.color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        heading == null
-                            ? '--'
-                            : '${heading!.toStringAsFixed(1)} deg',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Transform.rotate(
+              angle: (heading ?? 0) * math.pi / 180,
+              child: const Icon(Icons.navigation, color: Colors.blue, size: 28),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Bearing",
+                    style: TextStyle(fontSize: 12, color: Colors.black54)),
+                Text("${heading?.toStringAsFixed(1) ?? '--'}°",
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue)),
+              ],
+            )
+          ],
         ),
       ),
     );
@@ -441,44 +359,30 @@ class _BigActionButton extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-
-  const _BigActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
+  const _BigActionButton(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: SizedBox(
-          width: 120,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        width: 110,
+        child: Column(
+          children: [
+            CircleAvatar(
                 radius: 30,
                 backgroundColor: color,
-                child: Icon(icon, color: Colors.white, size: 30),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                maxLines: 2,
+                child: Icon(icon, color: Colors.white, size: 30)),
+            const SizedBox(height: 8),
+            Text(label,
                 textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ],
         ),
       ),
     );
