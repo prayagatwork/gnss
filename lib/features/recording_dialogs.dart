@@ -41,24 +41,25 @@ class _StartPathDialogState extends ConsumerState<StartPathDialog> {
                 style: TextStyle(fontSize: 13, color: Colors.black87)),
             const SizedBox(height: 10),
 
-            // Mode Selection
-            RadioListTile<RecordMode>(
-              title: const Text("Time-based"),
-              value: RecordMode.time,
-              groupValue: _mode,
-              activeColor: Colors.blue,
-              onChanged: (v) => setState(() {
-                _mode = v!;
-              }),
-            ),
-            RadioListTile<RecordMode>(
-              title: const Text("Distance-based"),
-              value: RecordMode.distance,
-              groupValue: _mode,
-              activeColor: Colors.blue,
-              onChanged: (v) => setState(() {
-                _mode = v!;
-              }),
+            Center(
+              child: SegmentedButton<RecordMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: RecordMode.time,
+                    label: Text("Time"),
+                    icon: Icon(Icons.schedule),
+                  ),
+                  ButtonSegment(
+                    value: RecordMode.distance,
+                    label: Text("Distance"),
+                    icon: Icon(Icons.straighten),
+                  ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (selection) {
+                  setState(() => _mode = selection.first);
+                },
+              ),
             ),
 
             const SizedBox(height: 10),
@@ -93,10 +94,11 @@ class _StartPathDialogState extends ConsumerState<StartPathDialog> {
                       }).toList(),
                       onChanged: (v) {
                         setState(() {
-                          if (_mode == RecordMode.time)
+                          if (_mode == RecordMode.time) {
                             _timeUnit = v!;
-                          else
+                          } else {
                             _distUnit = v!;
+                          }
                         });
                       },
                     ),

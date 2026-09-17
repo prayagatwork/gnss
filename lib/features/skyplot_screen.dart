@@ -52,10 +52,10 @@ class SkyplotScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _StatMiniCard("Points", "56"),
-            _StatMiniCard("Track", "3.72 km"),
-            _StatMiniCard("Max Spd", "28.6"),
-            _StatMiniCard("Avg Spd", "12.4"),
+            _statMiniCard("Points", "56"),
+            _statMiniCard("Track", "3.72 km"),
+            _statMiniCard("Max Spd", "28.6"),
+            _statMiniCard("Avg Spd", "12.4"),
           ],
         ),
         const SizedBox(height: 20),
@@ -70,7 +70,7 @@ class SkyplotScreen extends StatelessWidget {
     );
   }
 
-  Widget _StatMiniCard(String l, String v) => Card(
+  Widget _statMiniCard(String l, String v) => Card(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Column(children: [
@@ -106,7 +106,7 @@ class _LineChart extends StatelessWidget {
             barWidth: 3,
             dotData: const FlDotData(show: false),
             belowBarData:
-                BarAreaData(show: true, color: color.withOpacity(0.1)),
+                BarAreaData(show: true, color: color.withValues(alpha: 0.1)),
           ),
         ],
       ),

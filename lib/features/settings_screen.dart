@@ -34,7 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsCategoryTile(
             icon: Icons.settings_voice_outlined,
             title: "Record settings",
-            subtitle: "Configure recording behavior and automation",
+            subtitle: "Configure path interval and accuracy filtering",
             onTap: () => _openSubSettings(
                 context, "Record settings", _buildRecordSettings()),
           ),
@@ -42,7 +42,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsCategoryTile(
             icon: Icons.monitor_outlined,
             title: "Display settings",
-            subtitle: "Customize units, map, charts and appearance",
+            subtitle: "Customize units, map and appearance",
             onTap: () => _openSubSettings(
                 context, "Display settings", _buildDisplaySettings()),
           ),
@@ -50,65 +50,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsCategoryTile(
             icon: Icons.storage_outlined,
             title: "Storage settings",
-            subtitle: "Manage storage, import/export and databases",
+            subtitle: "Manage TXT save, export and local logs",
             onTap: () => _openSubSettings(
                 context, "Storage settings", _buildStorageSettings()),
           ),
-          // 4. Manage Subscription Category
-          _SettingsCategoryTile(
-            icon: Icons.visibility_outlined,
-            title: "Manage subscription",
-            subtitle: "View and manage your subscription",
-            onTap: () {},
-          ),
-
           const Divider(),
-
-          // Subscription Banner matching screenshot
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade100),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  RichText(
-                    text: const TextSpan(
-                      text: "Subscription: ",
-                      style: TextStyle(
-                          color: Colors.black, fontWeight: FontWeight.bold),
-                      children: [
-                        TextSpan(
-                            text: "NONE", style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Expanded(
-                        child: Text(
-                            "Subscribe now and unlock all premium features",
-                            style:
-                                TextStyle(fontSize: 12, color: Colors.black54)),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade800,
-                            foregroundColor: Colors.white),
-                        child: const Text("SUBSCRIBE"),
-                      )
-                    ],
-                  )
-                ],
-              ),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              "Windows handover build: external HC-05 COM receiver or simulation file, OpenStreetMap dashboard, TXT path export.",
+              style: TextStyle(fontSize: 13, color: Colors.black54),
             ),
           ),
         ],
@@ -134,24 +85,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return ListView(
       children: [
         const ListTile(
-            title: Text("Record profile: General"),
-            subtitle: Text("Freq: 1 second, Dist: 1.0 m")),
-        SwitchListTile(
-          secondary: const Icon(Icons.battery_saver_outlined),
-          title: const Text("Ignore battery optimizations"),
-          subtitle: const Text("Recommended for better background recording"),
-          value: true,
-          onChanged: (v) {},
+            title: Text("Record profile"),
+            subtitle: Text("Time: seconds/minutes/hours | Distance: m/km")),
+        ListTile(
+          leading: const Icon(Icons.speed_outlined),
+          title: const Text("Required accuracy filter"),
+          subtitle: Text(
+            session.filterByAccuracy
+                ? "Enabled, threshold ${session.requiredAccuracyM.toStringAsFixed(1)}"
+                : "Disabled",
+          ),
         ),
-        const ListTile(
-            title: Text("Setup for background work"),
-            subtitle: Text(
-                "Manual configuration for continuous background recording")),
         SwitchListTile(
           secondary: const Icon(Icons.stop_circle_outlined),
-          title: const Text("Mark stops"),
+          title: const Text("Recording active"),
           subtitle:
-              const Text("Automatically mark stops when you stop for a while"),
+              const Text("Use Dashboard controls to start, pause or finish"),
           value: session.isRecording,
           onChanged: (v) {},
         ),
@@ -175,8 +124,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: Text("Automatic")),
         const ListTile(
             leading: Icon(Icons.show_chart),
-            title: Text("Default x-axis for charts"),
-            subtitle: Text("Duration (s)")),
+            title: Text("Dashboard map"),
+            subtitle: Text("OpenStreetMap tiles in Windows exe")),
         const Divider(),
         const Padding(
           padding: EdgeInsets.all(16.0),
@@ -184,17 +133,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style:
                   TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
         ),
-        RadioListTile<AppThemeChoice>(
-          title: const Text("Red & White"),
-          value: AppThemeChoice.redWhite,
-          groupValue: widget.currentTheme,
-          onChanged: (v) => widget.onThemeChanged(v!),
-        ),
-        RadioListTile<AppThemeChoice>(
-          title: const Text("Blue & Black"),
-          value: AppThemeChoice.blueBlackWhite,
-          groupValue: widget.currentTheme,
-          onChanged: (v) => widget.onThemeChanged(v!),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SegmentedButton<AppThemeChoice>(
+            segments: const [
+              ButtonSegment(
+                value: AppThemeChoice.redWhite,
+                label: Text("Red & White"),
+                icon: Icon(Icons.circle_outlined),
+              ),
+              ButtonSegment(
+                value: AppThemeChoice.blueBlackWhite,
+                label: Text("Blue & Black"),
+                icon: Icon(Icons.contrast),
+              ),
+            ],
+            selected: {widget.currentTheme},
+            onSelectionChanged: (selection) {
+              widget.onThemeChanged(selection.first);
+            },
+          ),
         ),
       ],
     );
@@ -211,7 +169,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const ListTile(
             leading: Icon(Icons.file_download_outlined),
             title: Text("Export format"),
-            subtitle: Text("TXT (Default)")),
+            subtitle: Text("TXT, yyyymmdd_hhmmssmmm.txt")),
+        Consumer(
+          builder: (context, ref, _) {
+            final session = ref.watch(gnssSessionProvider);
+            return ListTile(
+              leading: const Icon(Icons.lock_outline),
+              title: const Text("Saved log"),
+              subtitle: Text(session.savedLogPath?.isEmpty ?? true
+                  ? "No locked file saved yet"
+                  : session.savedLogPath!),
+            );
+          },
+        ),
         const Divider(),
         const Padding(
           padding: EdgeInsets.all(16.0),
@@ -222,12 +192,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ListTile(
           leading: const Icon(Icons.delete_sweep_outlined, color: Colors.red),
           title: const Text("Clear current log"),
-          onTap: () => notifier.clearLog(),
+          onTap: () async {
+            await notifier.clearLog();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Current path cleared.")),
+            );
+          },
         ),
         ListTile(
           leading: const Icon(Icons.save_outlined, color: Colors.green),
           title: const Text("Save and lock log"),
-          onTap: () => notifier.saveLog(),
+          onTap: () async {
+            final path = await notifier.saveLog();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(path == null
+                    ? "No recorded path to save."
+                    : "Saved to $path"),
+              ),
+            );
+          },
         ),
       ],
     );

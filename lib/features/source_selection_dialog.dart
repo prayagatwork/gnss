@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import '../data/sources/windows_com_source.dart';
 import '../domain/models/source_config.dart';
 import 'gnss_session_controller.dart';
 import 'responsive.dart';
@@ -16,6 +17,19 @@ class SourceSelectionDialog extends ConsumerStatefulWidget {
 class _SourceSelectionDialogState extends ConsumerState<SourceSelectionDialog> {
   SourceType _selectedType = SourceType.simulation;
   int _baudRate = 9600;
+  late List<Map<String, String?>> _ports;
+  String? _selectedPort;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshPorts();
+  }
+
+  void _refreshPorts() {
+    _ports = WindowsComSource.listPorts();
+    _selectedPort = _ports.isEmpty ? null : _ports.first['name'];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,11 +88,48 @@ class _SourceSelectionDialogState extends ConsumerState<SourceSelectionDialog> {
                     "Select a .nmea or .txt log file from your computer to simulate a live GNSS feed.",
               ),
             ] else ...[
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text("COM Port",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => setState(_refreshPorts),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text("Refresh"),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedPort,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  isDense: true,
+                ),
+                hint: const Text("No COM ports found"),
+                items: _ports.map((port) {
+                  final name = port['name'] ?? '';
+                  final description = port['description'];
+                  return DropdownMenuItem<String>(
+                    value: name,
+                    child: Text(description == null || description.isEmpty
+                        ? name
+                        : "$name - $description"),
+                  );
+                }).toList(),
+                onChanged: (v) => setState(() => _selectedPort = v),
+              ),
+              const SizedBox(height: 12),
               const Text("Baud Rate",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
-                value: _baudRate,
+                initialValue: _baudRate,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   contentPadding:
@@ -97,7 +148,7 @@ class _SourceSelectionDialogState extends ConsumerState<SourceSelectionDialog> {
               const _SourceInfoBox(
                 icon: Icons.warning_amber_rounded,
                 text:
-                    "Physical serial port connection is only available in the Windows (.exe) build.",
+                    "Pair the HC-05 in Windows first, then select its outgoing virtual COM port. Default serial configuration is 9600 baud, 8-N-1.",
               ),
             ],
           ],
@@ -118,28 +169,34 @@ class _SourceSelectionDialogState extends ConsumerState<SourceSelectionDialog> {
           ),
           onPressed: () async {
             if (_selectedType == SourceType.simulation) {
-              // Web & Desktop compatible file picking
               final result = await FilePicker.platform.pickFiles(
                 type: FileType.custom,
                 allowedExtensions: ['nmea', 'txt', 'log'],
-                withData: true, // Required for Web to get bytes
+                withData: true,
               );
 
               if (result != null && result.files.first.bytes != null) {
                 if (!mounted) return;
 
-                // Pass the actual file data to the backend
                 ref
                     .read(gnssSessionProvider.notifier)
                     .startWebSimulation(result.files.first.bytes!);
 
-                Navigator.pop(context);
+                if (context.mounted) Navigator.pop(context);
               }
             } else {
-              // Logic for Serial Port (stubbed on Web, functional on EXE)
+              if (_selectedPort == null || _selectedPort!.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("No COM port selected.")),
+                );
+                return;
+              }
               ref.read(gnssSessionProvider.notifier).connect(
                     SourceConfig(
-                        type: SourceType.windowsCom, baudRate: _baudRate),
+                      type: SourceType.windowsCom,
+                      comPortName: _selectedPort,
+                      baudRate: _baudRate,
+                    ),
                   );
               Navigator.pop(context);
             }
